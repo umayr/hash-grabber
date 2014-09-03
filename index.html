@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en" ng-app="ng-pubfeeds">
+<head>
+    <meta charset="UTF-8">
+    <title>Hash Grabber</title>
+    <link rel="stylesheet" href="../libs/css/bootstrap.min.css"/>
+
+    <link rel="stylesheet" href="local/css/animations.css"/>
+
+    <script src="../libs/js/angular.min.js"></script>
+    <script src="local/js/angular-animate.min.js"></script>
+    <script src="../libs/js/jquery.min.js"></script>
+    <link rel="stylesheet" href="local/css/app.css"/>
+</head>
+<body>
+
+<div id="container" ng-controller="FeedCtrl">
+    <div class="feed fade-animation" ng-style="dimension" ng-repeat="feed in getFeeds() | orderBy:'-utc'"
+         ng-class="feed.type">
+        <div class="feed-text">
+            <h3 ng-style="getFontSizeStatus(feed.status);" ng-hide="feed.type=='instagram'">{{feed.status}}
+            </h3>
+
+            <div class="feed-image" ng-hide="feed.type!='instagram'">
+                <img ng-src="{{feed.image}}" alt="" onload="showImage(this);"/>
+
+                <div class="img-overlay"></div>
+            </div>
+        </div>
+        <div class="feed-info">
+            <div class="feed-img">
+                <img ng-src="{{feed.picture_url}}" alt=""/>
+            </div>
+            <div class="feed-details">
+                <h2 ng-style="getFontSize(feed.user_name);">{{feed.user_name}}</h2>
+                <h4>{{feed.time}}</h4>
+            </div>
+        </div>
+    </div>
+    <div ng-if="getFeeds().length==0" class="empty-msg">
+        <h1>{{emptyMessage()}}</h1>
+    </div>
+</div>
+<script>
+    var app = angular.module('ng-pubfeeds', ['ngAnimate']);
+    app.controller('FeedCtrl', function ($scope, $http) {
+        $scope.emptyMessage = function () {
+            var arr = [
+                "Initializing the awesome..",
+                "Pixels are getting dressed, don't peek.",
+                "Let's all respect the science..",
+                "Locating the required gigapixels to render..",
+                "Spinning up the hamster..",
+                "Shovelling coal into the server...",
+                "Programming the flux capacitor..",
+                "would you prefer chicken, steak, or tofu?",
+                "and dream of faster computers..",
+                "go ahead -- hold your breath..",
+                "we're testing your patience..",
+                "Yes there really are magic elves with an abacus working frantically in here..",
+                "HELP!, I'm being held hostage, and forced to write the stupid lines!"
+            ];
+            return arr[getRandomInt(0, (arr.length - 1))];
+        };
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        $scope.feeds = [];
+        $scope.getFeeds = function () {
+            //return $scope.feeds.uniqueObjects(["id"]);
+            return $scope.getUnique($scope.feeds, 'id');
+        };
+        $scope.defaultDimensions = 300;
+        $scope.isFirst = true;
+
+        $scope.getUnique = function (collection, keyname) {
+            var output = [],
+                    keys = [];
+
+            angular.forEach(collection, function (item) {
+                var key = item[keyname];
+                if (keys.indexOf(key) === -1) {
+                    keys.push(key);
+                    output.push(item);
+                }
+            });
+
+            return output;
+        };
+        $scope.FLID = 0;
+        $scope.TLID = 0;
+        $scope.ILID = 0;
+
+        setInterval(function () {
+            $http.get('ig-get.php?LID=' + $scope.ILID).then(function (result) {
+                var _feed;
+                for (var i = 0; i < result.data.length; i++) {
+                    _feed = new Feed(result.data[i]);
+                    $scope.feeds.push(_feed);
+                }
+                $scope.ILID = _feed.id || 0;
+            });
+            $http.get('fb.php?LID=' + $scope.FLID).then(function (result) {
+                var _feed;
+                for (var i = 0; i < result.data.length; i++) {
+                    console.log(result);
+                    _feed = new Feed(result.data[i]);
+                    $scope.feeds.push(_feed);
+                }
+                $scope.FLID = _feed.id || 0;
+            });
+            $http.get('tw.php?LID=' + $scope.TLID).then(function (result) {
+                var _feed;
+                for (var i = 0; i < result.data.length; i++) {
+                    _feed = new Feed(result.data[i]);
+                    $scope.feeds.push(_feed);
+                }
+                $scope.TLID = _feed.id || 0;
+            });
+
+        }, 10000);
+
+        $http.get('ig-get.php').then(function (result) {
+            var _feed;
+            for (var i = 0; i < result.data.length; i++) {
+                _feed = new Feed(result.data[i]);
+                $scope.feeds.push(_feed);
+            }
+            $scope.ILID = _feed.id;
+        });
+        $http.get('fb.php').then(function (result) {
+            var _feed;
+            for (var i = 0; i < result.data.length; i++) {
+                _feed = new Feed(result.data[i]);
+                $scope.feeds.push(_feed);
+            }
+            $scope.FLID = _feed.id;
+        });
+        $http.get('tw.php').then(function (result) {
+            var _feed;
+            for (var i = 0; i < result.data.length; i++) {
+                _feed = new Feed(result.data[i]);
+                $scope.feeds.push(_feed);
+            }
+            $scope.TLID = _feed.id;
+        });
+        $scope.dimension = {
+            width: window.innerWidth / Math.floor(window.innerWidth / $scope.defaultDimensions) + 'px',
+            height: window.innerWidth / Math.floor(window.innerWidth / $scope.defaultDimensions) + 'px'
+        };
+        $scope.getFontSize = function (text) {
+            if (text != null) {
+                var min = 14.5;
+                var max = 28;
+                var size = ((window.innerWidth / Math.floor(window.innerWidth / $scope.defaultDimensions)) * 0.8 ) / (text.length - 5);
+                return {'font-size': ((size > max) ? max : ((size < min) ? min : size)) + 'px'}
+            }
+            else {
+                return null;
+            }
+
+        };
+        $scope.getFontSizeStatus = function (text) {
+            if (text != null) {
+                var chars = 250, height = 300, max = 4.8, min = 2, temp;
+                if (text.length < chars) {
+                    chars = text.length;
+                }
+                if ((window.innerWidth / Math.floor(window.innerWidth / height)) < height) {
+                    height = window.innerWidth / Math.floor(window.innerWidth / height);
+                }
+                height = (height / 10) * 6.5;
+                temp = (height / chars);
+                var size = temp > max ? max : temp < min ? min : Math.round(height / chars);
+                return {'font-size': size + 'em'};
+            }
+            else {
+                return null;
+            }
+
+        };
+    });
+    var Feed = function (o) {
+        this.id = o.id;
+        this.type = o.type;
+        this.picture_url = o.picture_url;
+        this.status = o.status;
+        this.user_id = o.user_id;
+        this.user_name = o.user_name;
+        this.time = o.time;
+        this.utc = o.utc;
+
+        this.image = o.hasOwnProperty('image') ? o.image : null;
+    };
+    function showImage(o) {
+        $(o).fadeIn();
+    }
+</script>
+</body>
+</html>
